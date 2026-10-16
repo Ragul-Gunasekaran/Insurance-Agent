@@ -11,7 +11,8 @@ import java.time.Instant;
     name = "telematics_records",
     indexes = {
         @Index(name = "idx_telemetry_vehicle_ts", columnList = "vehicle_id, timestamp"),
-        @Index(name = "idx_telemetry_status", columnList = "validation_status")
+        @Index(name = "idx_telemetry_status", columnList = "validation_status"),
+        @Index(name = "idx_telemetry_trip", columnList = "trip_id")
     }
 )
 public class TelematicsRecord {
@@ -23,6 +24,10 @@ public class TelematicsRecord {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vehicle_id", nullable = false)
     private Vehicle vehicle;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "trip_id")
+    private Trip trip;
 
     @Column(name = "timestamp", nullable = false)
     private Instant timestamp;
@@ -101,6 +106,14 @@ public class TelematicsRecord {
 
     public void setVehicle(Vehicle vehicle) {
         this.vehicle = vehicle;
+    }
+
+    public Trip getTrip() {
+        return trip;
+    }
+
+    public void setTrip(Trip trip) {
+        this.trip = trip;
     }
 
     public Instant getTimestamp() {

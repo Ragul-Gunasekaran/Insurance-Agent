@@ -24,6 +24,8 @@ public class VehicleResponse {
     private VerificationStatus verificationStatus;
     private String verificationNotes;
     private Instant createdAt;
+    private Long ownerId;
+    private String ownerEmail;
 
     public VehicleResponse() {
     }
@@ -44,6 +46,10 @@ public class VehicleResponse {
         dto.setVerificationStatus(vehicle.getVerificationStatus());
         dto.setVerificationNotes(vehicle.getVerificationNotes());
         dto.setCreatedAt(vehicle.getCreatedAt());
+        if (vehicle.getOwner() != null) {
+            dto.setOwnerId(vehicle.getOwner().getId());
+            dto.setOwnerEmail(vehicle.getOwner().getEmail());
+        }
         return dto;
     }
 
@@ -135,5 +141,21 @@ public class VehicleResponse {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Long getOwnerId() {
+        return ownerId;
+    }
+
+    public void setOwnerId(Long ownerId) {
+        this.ownerId = ownerId;
+    }
+
+    public String getOwnerEmail() {
+        return ownerEmail;
+    }
+
+    public void setOwnerEmail(String ownerEmail) {
+        this.ownerEmail = ownerEmail;
     }
 }

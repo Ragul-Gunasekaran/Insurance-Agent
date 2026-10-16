@@ -240,12 +240,89 @@ The frontend application opens at `http://localhost:5173`.
 
 ---
 
-## 13. Future Implementation Roadmap
+## 13. Implementation Roadmap
 
 - [x] **Step 1:** Foundation Setup & Architecture Design (Modular monolith, CORS, MySQL pool resiliency, health checks).
 - [x] **Step 2:** Vehicle Registration & Verification Module (Vehicle JPA entities, duplicate protection, mock national verification, React fleet management UI).
 - [x] **Step 3:** IoT Telematics Data Ingestion & Calibration (GPS boundaries, speed anomaly filters, traction limits, route simulator, live stream audit UI).
-- [ ] **Step 4:** Trip Stitching & Feature Engineering (Session segmentation, harsh brake/accel detection, distance aggregation).
-- [ ] **Step 5:** Risk Scoring Engine (Safety score algorithm 0-100, weighting matrix).
-- [ ] **Step 6:** Actuarial Pricing & Explanation Engine (Dynamic premiums, actuarial discounts, factor breakdown).
-- [ ] **Step 7:** Customer & Insurer React Dashboards (Driver scorecards, trip history, insurer actuarial adjustments).
+- [x] **Step 4:** Trip Stitching & Feature Engineering Engine (Session segmentation by inactivity threshold, Haversine distance with GPS jump filtering, debounced harsh event counting, night driving exposure in local timezone, and trip insights UI).
+- [x] **Step 5:** Behavioral Risk Scoring Engine (Deterministic 0–100 safety score, harsh braking / rapid accel / speeding / night driving deductions, penalty caps, data quality safeguards, explainability vectors, and Risk Scoring UI dashboard).
+- [x] **Step 6:** Actuarial Pricing & Explanation Engine (Illustrative UBI premium calculation in INR ₹, base tariff, risk multiplier, usage multiplier, floor/ceiling bounds, immutable quote snapshots, and Pricing & Quotes UI dashboard).
+- [x] **Step 7:** Customer Driver Scorecards & Insurer Dashboards (Driver safety scorecards, distance-weighted rates, paginated trip table with feature/penalty drill-down, chronological score progression, and Prototype Insurer Analytics with fleet macro metrics, trip/vehicle risk distributions, mileage coverage, and mean/median illustrative premium analytics).
+- [x] **Step 8:** Authentication, Authorization & Security Hardening (Spring Security 6 session-based authentication, BCrypt password hashing, customer data ownership enforcement with 404 cross-owner isolation, role-based access control protecting insurer analytics with 403 Forbidden, CSRF SPA protection with HttpOnly session cookies, initial insurer bootstrap, and authenticated React experience with demo autofill modals).
+- [x] **Step 9:** Final Integration, End-to-End Validation & Hackathon Readiness (153 automated tests passing, end-to-end customer 12-step workflow validation, insurer analytics isolation, data quality safeguards, production build validation, and hackathon presentation checklist).
+
+---
+
+## 14. Authentication & Security
+
+The application enforces genuine authentication and server-side role-based access control (RBAC).
+
+### Security Model
+- **Roles:**
+  - `CUSTOMER`: Access restricted strictly to own vehicles, trips, telematics, risk scores, pricing quotes, and scorecards. Any attempt to access or mutate another customer's vehicle returns `404 Not Found` to prevent resource enumeration.
+  - `INSURER`: Authorized to inspect fleet-wide underwriting distribution, risk tier statistics, and pricing aggregates (`/api/v1/dashboard/insurer/**`).
+- **Session Architecture:** Secure server-managed sessions with `HttpOnly`, `SameSite=Lax` cookies, and CSRF protection via `CookieCsrfTokenRepository` (`X-XSRF-TOKEN`).
+- **Zero Hardcoded Passwords:** Insurer initialization is managed via environment-driven bootstrap (`InsurerBootstrapService`).
+
+### Pre-Configured Demo Accounts (Development & Hackathon)
+| Role | Email | Password | Permissions |
+| :--- | :--- | :--- | :--- |
+| **Customer** | `customer@trustdrive.internal` | `CustomerSecure2026!` | Manage own vehicles, ingest telemetry, run trip stitching, view private driver scorecard and quotes. |
+| **Insurer** | `insurer@trustdrive.internal` | `InsurerSecure2026!` | Inspect fleet-wide actuarial analytics, risk tier distributions, and underwriter metrics. |
+
+### Running the Automated Test Suite (153 Tests)
+```powershell
+cd d:\Trust_Drive\usage-based-insurance\backend
+$env:JAVA_HOME = "C:\Program Files\Java\jdk-21.0.10"
+$env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
+.\mvnw.cmd test
+```
+*Current test suite status: 153 passed, 0 failures, 0 errors.*
+
+---
+
+## 15. Hackathon Demonstration Checklist
+
+Follow this sequential workflow to showcase the end-to-end platform during the hackathon presentation:
+
+1. **Customer Registration & Login**:
+   - Open [http://localhost:5173](http://localhost:5173).
+   - Click **Sign In** and use the **"Demo Customer"** quick-fill button (`customer@trustdrive.internal` / `CustomerSecure2026!`).
+   - Notice the status pill updates to show authenticated Customer session and email.
+2. **Vehicle Onboarding (Step 2)**:
+   - Navigate to the **Vehicles** tab.
+   - Onboard a vehicle (e.g., `MH02AB1234`, Tata Nexon, 2023).
+   - Click **Run Verification** to show simulated registry checks and `VERIFIED` status.
+3. **IoT Telematics Ingestion & Simulator (Step 3)**:
+   - Navigate to the **IoT Telematics** tab.
+   - Select the onboarded vehicle and choose behavioral route profile `SAFE_COMMUTE` or `AGGRESSIVE_DRIVING`.
+   - Click **Simulate & Ingest Telemetry** to stream GPS, speed, and G-force points with real-time anomaly detection.
+4. **Trip Stitching & Feature Engineering (Step 4)**:
+   - Navigate to the **Trips** tab.
+   - Click **Stitch Inactive Journeys** to segment GPS points into distinct trip sessions.
+   - Click **Compute Behavioral Features** to extract debounced harsh braking, rapid acceleration, speeding, and night exposure.
+5. **Behavioral Risk Scoring (Step 5)**:
+   - Navigate to the **Risk Scores** tab.
+   - Click **Calculate Safety Score** to observe the explainable 0–100 behavioral safety score and itemized factor penalties.
+6. **Actuarial Pricing Engine (Step 6)**:
+   - Navigate to the **Pricing** tab.
+   - Enter an annual mileage estimate (e.g., 10,000 km) and click **Calculate Policy Quote**.
+   - Review the itemized premium breakdown in INR (₹) showing safe driver discounts and distance multipliers.
+7. **Customer Driver Scorecard (Step 7)**:
+   - Navigate to the **Scorecard** tab.
+   - Inspect the policyholder's personalized driver dashboard, historical score progression, and trip-level penalty drilldowns.
+8. **Insurer Underwriter Analytics & RBAC Isolation (Step 7 & 8)**:
+   - Attempt to click **Insurer** tab while logged in as Customer: observe the `403 Forbidden` access notice.
+   - Click **Sign Out**, then sign in with the **"Demo Insurer"** quick-fill button (`insurer@trustdrive.internal` / `InsurerSecure2026!`).
+   - Open **Insurer** tab to inspect macro fleet metrics, risk tier distribution, driving behavior rates, and underwriting premium aggregates.
+
+---
+
+## 16. Prototype Limitations & Disclaimers
+
+1. **Illustrative Actuarial Calculations:** All computed insurance premiums and safety scores are illustrative estimates generated for hackathon demonstration. They do not constitute certified insurance policies, underwriting commitments, or regulated financial products.
+2. **Simulated Hardware Telematics:** Telemetry streams are produced via calibrated physical simulation models (or direct JSON ingestion) rather than physical OBD-II / CAN-bus dongles.
+3. **Mock Vehicle Registry:** Verification utilizes deterministic mock lookup algorithms rather than live Indian government mParivahan / VAHAN API integrations.
+4. **Single-Tenant Insurer Mode:** The prototype enforces role-based access separating customers from insurer underwriters; multi-tenant multi-carrier data isolation is not implemented.
+

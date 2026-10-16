@@ -4,6 +4,7 @@ import com.ubi.platform.dto.*;
 import com.ubi.platform.entity.Vehicle;
 import com.ubi.platform.exception.DuplicateResourceException;
 import com.ubi.platform.exception.ResourceNotFoundException;
+import com.ubi.platform.repository.UserRepository;
 import com.ubi.platform.repository.VehicleRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,14 +27,36 @@ public class VehicleService {
     private final VehicleRepository vehicleRepository;
     private final VehicleVerificationService verificationService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private UserRepository userRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.ubi.platform.security.SecurityUtils securityUtils;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.ubi.platform.security.OwnershipService ownershipService;
+
     public VehicleService(VehicleRepository vehicleRepository, VehicleVerificationService verificationService) {
         this.vehicleRepository = vehicleRepository;
         this.verificationService = verificationService;
     }
 
+    public void setUserRepository(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
+    public void setSecurityUtils(com.ubi.platform.security.SecurityUtils securityUtils) {
+        this.securityUtils = securityUtils;
+    }
+
+    public void setOwnershipService(com.ubi.platform.security.OwnershipService ownershipService) {
+        this.ownershipService = ownershipService;
+    }
+
     /**
      * Registers a new vehicle into the platform.
      * Normalizes the registration number, verifies uniqueness, and persists with default UNVERIFIED status.
+     * Associating with the currently authenticated customer account when present.
      */
     @Transactional
     public VehicleResponse registerVehicle(VehicleRegistrationRequest request) {
@@ -56,6 +79,11 @@ public class VehicleService {
                 request.getVehicleType()
         );
 
+        // Associate with current authenticated user
+        if (securityUtils != null && userRepository != null) {
+            securityUtils.getCurrentUserEntity(userRepository).ifPresent(vehicle::setOwner);
+        }
+
         try {
             Vehicle saved = vehicleRepository.save(vehicle);
             log.info("Successfully registered vehicle ID: {} [{}]", saved.getId(), saved.getVehicleNumber());
@@ -67,21 +95,33 @@ public class VehicleService {
     }
 
     /**
-     * Retrieves an onboarded vehicle by its primary key ID.
+     * Retrieves an onboarded vehicle by its primary key ID, enforcing ownership check.
      */
     @Transactional(readOnly = true)
     public VehicleResponse getVehicleById(Long id) {
         Vehicle vehicle = vehicleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with ID: " + id));
+
+        if (ownershipService != null) {
+            ownershipService.verifyVehicleAccess(vehicle);
+        }
+
         return VehicleResponse.fromEntity(vehicle);
     }
 
     /**
-     * Retrieves a paginated list of all onboarded vehicles.
+     * Retrieves a paginated list of onboarded vehicles.
+     * Customers are scoped strictly to their own registered vehicles; Insurers see fleet-wide.
      */
     @Transactional(readOnly = true)
     public PageResponse<VehicleResponse> getAllVehicles(Pageable pageable) {
-        Page<Vehicle> page = vehicleRepository.findAll(pageable);
+        Page<Vehicle> page;
+        if (securityUtils != null && securityUtils.isCustomer() && securityUtils.getCurrentUserId().isPresent()) {
+            page = vehicleRepository.findByOwnerId(securityUtils.getCurrentUserId().get(), pageable);
+        } else {
+            page = vehicleRepository.findAll(pageable);
+        }
+
         List<VehicleResponse> dtos = page.getContent().stream()
                 .map(VehicleResponse::fromEntity)
                 .toList();
@@ -95,8 +135,13 @@ public class VehicleService {
     @Transactional
     public VehicleVerificationResponse verifyVehicle(VehicleVerificationRequest request) {
         if (request.getVehicleId() != null) {
-            Vehicle vehicle = vehicleRepository.findById(request.getVehicleId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Cannot verify nonexistent vehicle ID: " + request.getVehicleId()));
+            Vehicle vehicle;
+            if (ownershipService != null) {
+                vehicle = ownershipService.verifyVehicleAccess(request.getVehicleId());
+            } else {
+                vehicle = vehicleRepository.findById(request.getVehicleId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Cannot verify nonexistent vehicle ID: " + request.getVehicleId()));
+            }
 
             // Populate request attributes from database entity if not specified
             if (request.getVehicleNumber() == null) {

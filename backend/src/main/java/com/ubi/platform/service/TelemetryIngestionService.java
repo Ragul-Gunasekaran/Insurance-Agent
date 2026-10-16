@@ -35,6 +35,9 @@ public class TelemetryIngestionService {
     private final TelemetryValidationService validationService;
     private final TelemetrySimulationService simulationService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.ubi.platform.security.OwnershipService ownershipService;
+
     public TelemetryIngestionService(TelematicsRepository telematicsRepository,
                                      VehicleRepository vehicleRepository,
                                      TelemetryValidationService validationService,
@@ -45,14 +48,23 @@ public class TelemetryIngestionService {
         this.simulationService = simulationService;
     }
 
+    public void setOwnershipService(com.ubi.platform.security.OwnershipService ownershipService) {
+        this.ownershipService = ownershipService;
+    }
+
     /**
      * Ingests a batch of raw IoT telematics data points for a specific vehicle.
      */
     @Transactional
     public TelematicsBatchIngestResponse ingestBatch(TelematicsBatchIngestRequest request) {
         Long vehicleId = request.getVehicleId();
-        Vehicle vehicle = vehicleRepository.findById(vehicleId)
-                .orElseThrow(() -> new ResourceNotFoundException("Cannot ingest telematics for unknown vehicle ID: " + vehicleId));
+        Vehicle vehicle;
+        if (ownershipService != null) {
+            vehicle = ownershipService.verifyVehicleAccess(vehicleId);
+        } else {
+            vehicle = vehicleRepository.findById(vehicleId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Cannot ingest telematics for unknown vehicle ID: " + vehicleId));
+        }
 
         List<TelematicsPointRequest> rawPoints = request.getPoints();
         List<TelematicsRecord> toSave = new ArrayList<>();
@@ -112,8 +124,13 @@ public class TelemetryIngestionService {
         if (request.getVehicleId() == null) {
             throw new IllegalArgumentException("Vehicle ID is required for telematics ingestion");
         }
-        Vehicle vehicle = vehicleRepository.findById(request.getVehicleId())
-                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with ID: " + request.getVehicleId()));
+        Vehicle vehicle;
+        if (ownershipService != null) {
+            vehicle = ownershipService.verifyVehicleAccess(request.getVehicleId());
+        } else {
+            vehicle = vehicleRepository.findById(request.getVehicleId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with ID: " + request.getVehicleId()));
+        }
 
         TelemetryValidationService.ValidationResult val = validationService.validatePoint(request);
         TelematicsRecord record = new TelematicsRecord(
@@ -140,6 +157,10 @@ public class TelemetryIngestionService {
     @Transactional
     public TelematicsBatchIngestResponse simulateAndIngest(SimulateTelemetryRequest request) {
         Long vehicleId = request.getVehicleId();
+        if (ownershipService != null) {
+            ownershipService.verifyVehicleAccess(vehicleId);
+        }
+
         List<TelematicsPointRequest> syntheticPoints = simulationService.generateSimulationRoute(
                 vehicleId,
                 request.getProfile(),
@@ -155,7 +176,9 @@ public class TelemetryIngestionService {
      */
     @Transactional(readOnly = true)
     public PageResponse<TelematicsPointResponse> getVehicleTelemetry(Long vehicleId, Pageable pageable) {
-        if (!vehicleRepository.existsById(vehicleId)) {
+        if (ownershipService != null) {
+            ownershipService.verifyVehicleAccess(vehicleId);
+        } else if (!vehicleRepository.existsById(vehicleId)) {
             throw new ResourceNotFoundException("Vehicle not found with ID: " + vehicleId);
         }
 
@@ -172,8 +195,13 @@ public class TelemetryIngestionService {
      */
     @Transactional(readOnly = true)
     public TelematicsSummaryResponse getVehicleTelemetrySummary(Long vehicleId) {
-        Vehicle vehicle = vehicleRepository.findById(vehicleId)
-                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with ID: " + vehicleId));
+        Vehicle vehicle;
+        if (ownershipService != null) {
+            vehicle = ownershipService.verifyVehicleAccess(vehicleId);
+        } else {
+            vehicle = vehicleRepository.findById(vehicleId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with ID: " + vehicleId));
+        }
 
         long totalCount = telematicsRepository.countByVehicleId(vehicleId);
         long validCount = telematicsRepository.countByVehicleIdAndValidationStatus(vehicleId, TelematicsValidationStatus.VALID);
@@ -213,7 +241,9 @@ public class TelemetryIngestionService {
      */
     @Transactional
     public void clearVehicleTelemetry(Long vehicleId) {
-        if (!vehicleRepository.existsById(vehicleId)) {
+        if (ownershipService != null) {
+            ownershipService.verifyVehicleAccess(vehicleId);
+        } else if (!vehicleRepository.existsById(vehicleId)) {
             throw new ResourceNotFoundException("Vehicle not found with ID: " + vehicleId);
         }
         telematicsRepository.deleteByVehicleId(vehicleId);

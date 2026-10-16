@@ -10,7 +10,8 @@ import java.time.Instant;
 @Table(
     name = "vehicles",
     indexes = {
-        @Index(name = "idx_vehicles_vehicle_number", columnList = "vehicleNumber", unique = true)
+        @Index(name = "idx_vehicles_vehicle_number", columnList = "vehicleNumber", unique = true),
+        @Index(name = "idx_vehicles_owner", columnList = "owner_id")
     }
 )
 public class Vehicle {
@@ -18,6 +19,10 @@ public class Vehicle {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id")
+    private User owner;
 
     @Column(name = "vehicle_number", nullable = false, unique = true, length = 32)
     private String vehicleNumber;
@@ -165,5 +170,13 @@ public class Vehicle {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public User getOwner() {
+        return owner;
+    }
+
+    public void setOwner(User owner) {
+        this.owner = owner;
     }
 }

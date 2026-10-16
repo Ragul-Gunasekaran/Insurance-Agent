@@ -133,6 +133,30 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAuthenticationException(org.springframework.security.core.AuthenticationException ex, HttpServletRequest request) {
+        log.warn("Authentication failure on {}: {}", request.getRequestURI(), ex.getMessage());
+        ApiResponse<Void> response = ApiResponse.fail(
+                "UNAUTHORIZED",
+                ex.getMessage() != null ? ex.getMessage() : "Authentication failed",
+                HttpStatus.UNAUTHORIZED.value(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(org.springframework.security.access.AccessDeniedException ex, HttpServletRequest request) {
+        log.warn("Access denied on {}: {}", request.getRequestURI(), ex.getMessage());
+        ApiResponse<Void> response = ApiResponse.fail(
+                "FORBIDDEN",
+                "Access denied: insufficient privileges",
+                HttpStatus.FORBIDDEN.value(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception ex, HttpServletRequest request) {
         log.error("Unhandled exception processing request to {}: {}", request.getRequestURI(), ex.getMessage(), ex);

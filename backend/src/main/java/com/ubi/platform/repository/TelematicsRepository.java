@@ -34,6 +34,11 @@ public interface TelematicsRepository extends JpaRepository<TelematicsRecord, Lo
     List<TelematicsRecord> findByVehicleIdOrderByTimestampAsc(Long vehicleId);
 
     /**
+     * Retrieve all telematics records assigned to a specific trip, sorted chronologically ascending.
+     */
+    List<TelematicsRecord> findByTripIdOrderByTimestampAsc(Long tripId);
+
+    /**
      * Count total pings for a vehicle.
      */
     long countByVehicleId(Long vehicleId);
@@ -71,4 +76,15 @@ public interface TelematicsRepository extends JpaRepository<TelematicsRecord, Lo
 
     @Query("SELECT COUNT(t) FROM TelematicsRecord t WHERE t.vehicle.id = :vehicleId AND t.validationStatus = 'VALID' AND t.speedKmh >= :speedThreshold")
     long countSpeedingEventsByVehicleId(@Param("vehicleId") Long vehicleId, @Param("speedThreshold") Double speedThreshold);
+
+    /**
+     * Unique vehicle IDs with recorded telematics pings.
+     */
+    @Query("SELECT DISTINCT t.vehicle.id FROM TelematicsRecord t")
+    List<Long> findDistinctVehicleIdsWithTelematics();
+
+    /**
+     * Count telematics records fleet-wide by validation status.
+     */
+    long countByValidationStatus(TelematicsValidationStatus validationStatus);
 }
