@@ -7,12 +7,12 @@ FROM eclipse-temurin:21-jdk-jammy AS builder
 WORKDIR /app
 
 # Cache Maven wrapper and dependencies
-COPY .mvn/ .mvn/
-COPY mvnw pom.xml ./
+COPY backend/.mvn/ .mvn/
+COPY backend/mvnw backend/pom.xml ./
 RUN chmod +x mvnw && ./mvnw dependency:go-offline -B || true
 
 # Copy source code and package executable production archive
-COPY src/ src/
+COPY backend/src/ src/
 RUN ./mvnw clean package -DskipTests
 
 # Stage 2: Minimal, secure runtime image using Eclipse Temurin Java 21 JRE
