@@ -50,6 +50,12 @@ public class SecurityConfig {
     @Value("${app.cors.allowed-origins:http://localhost:5173}")
     private String allowedOrigins;
 
+    @Value("${server.servlet.session.cookie.secure:false}")
+    private boolean cookieSecure;
+
+    @Value("${server.servlet.session.cookie.same-site:Lax}")
+    private String cookieSameSite;
+
     private final ObjectMapper objectMapper;
 
     public SecurityConfig(ObjectMapper objectMapper) {
@@ -66,12 +72,25 @@ public class SecurityConfig {
         return authConfig.getAuthenticationManager();
     }
 
+    private CookieCsrfTokenRepository csrfTokenRepository() {
+        CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        repository.setCookieCustomizer(customizer -> {
+            if (cookieSecure) {
+                customizer.secure(true);
+            }
+            if (cookieSameSite != null && !cookieSameSite.isBlank()) {
+                customizer.sameSite(cookieSameSite);
+            }
+        });
+        return repository;
+    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf
-                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .csrfTokenRepository(csrfTokenRepository())
                 .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
                 .ignoringRequestMatchers(
                     "/api/v1/auth/login",

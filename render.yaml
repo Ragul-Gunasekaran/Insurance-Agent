@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: trustdrive-backend
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    plan: free
+    region: oregon
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_USE_SSL
+        value: "true"
+      - key: DB_ALLOW_PUBLIC_KEY_RETRIEVAL
+        value: "true"
+      - key: DB_CONNECTION_TIMEOUT
+        value: "30000"
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: COOKIE_SAME_SITE
+        value: "None"
+      - key: BOOTSTRAP_CUSTOMER_ENABLED
+        value: "false"
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "4000"
+      - key: DB_NAME
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: BOOTSTRAP_INSURER_EMAIL
+        sync: false
+      - key: BOOTSTRAP_INSURER_PASSWORD
+        sync: false
