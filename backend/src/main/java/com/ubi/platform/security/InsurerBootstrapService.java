@@ -37,7 +37,7 @@ public class InsurerBootstrapService implements ApplicationRunner {
     @Value("${app.security.bootstrap-insurer.email:insurer@trustdrive.internal}")
     private String bootstrapInsurerEmail;
 
-    @Value("${app.security.bootstrap-insurer.password:InsurerSecure2026!}")
+    @Value("${app.security.bootstrap-insurer.password:}")
     private String bootstrapInsurerPassword;
 
     @Value("${app.security.bootstrap-customer.enabled:true}")
@@ -46,7 +46,7 @@ public class InsurerBootstrapService implements ApplicationRunner {
     @Value("${app.security.bootstrap-customer.email:customer@trustdrive.internal}")
     private String bootstrapCustomerEmail;
 
-    @Value("${app.security.bootstrap-customer.password:CustomerSecure2026!}")
+    @Value("${app.security.bootstrap-customer.password:}")
     private String bootstrapCustomerPassword;
 
     public InsurerBootstrapService(UserRepository userRepository,
@@ -81,6 +81,11 @@ public class InsurerBootstrapService implements ApplicationRunner {
             return;
         }
 
+        if (bootstrapInsurerPassword == null || bootstrapInsurerPassword.isBlank()) {
+            log.info("Insurer bootstrap password is not configured. Skipping insurer bootstrap.");
+            return;
+        }
+
         log.info("Bootstrapping initial insurer account for: {}", normalizedEmail);
         User insurer = new User(
                 normalizedEmail,
@@ -102,6 +107,10 @@ public class InsurerBootstrapService implements ApplicationRunner {
         User customer = userRepository.findByEmail(normalizedEmail).orElse(null);
 
         if (customer == null) {
+            if (bootstrapCustomerPassword == null || bootstrapCustomerPassword.isBlank()) {
+                log.info("Demo customer bootstrap password is not configured. Skipping customer bootstrap.");
+                return;
+            }
             log.info("Bootstrapping initial demo customer account for: {}", normalizedEmail);
             customer = new User(
                     normalizedEmail,
